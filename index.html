@@ -1,0 +1,2056 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>M5 Literacy Suite</title>
+    <style>
+        body {
+            font-family: 'Sassoon Primary', 'Comic Sans MS', Arial, sans-serif;
+            margin: 0;
+            background-color: #ffffff;
+            height: 100vh;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        .watermark {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 12px;
+            color: #6b7280;
+            opacity: 0.7;
+            font-family: 'Sassoon Primary', 'Comic Sans MS', Arial, sans-serif;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        /* Homepage Styles */
+        .homepage {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .homepage h1 {
+            color: #1d1d1f;
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .nav-button {
+            width: 250px;
+            height: 60px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Sassoon Primary', 'Comic Sans MS', Arial, sans-serif;
+            font-size: 24px;
+            font-weight: 500;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.3s, transform 0.1s;
+            color: white;
+        }
+
+        .nav-button:hover {
+            transform: translateY(-1px);
+        }
+
+        #speedSoundBtn {
+            background-color: #007aff;
+        }
+
+        #blendingBoardBtn {
+            background-color: #34c759;
+        }
+
+        /* Speed Sound Deck Styles */
+        .speed-sound-deck {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .flashcard-container {
+            width: 100%;
+            height: 70%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .flashcard {
+            width: 80vw;
+            height: 100vw;
+            max-width: 800px;
+            max-height: 1000px;
+            position: absolute;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #ffffff;
+            border: 1px solid #d2d2d7;
+            border-radius: 12px;
+            color: #1d1d1f;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            user-select: none;
+            touch-action: none;
+            z-index: 1;
+            opacity: 1;
+        }
+
+        .flashcard.active {
+            z-index: 2;
+        }
+
+        .flashcard.fade-out {
+            animation: fadeOut 0.3s forwards;
+        }
+
+        .flashcard.fade-in {
+            animation: fadeIn 0.3s forwards;
+        }
+
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        @keyframes fadeIn {
+            0% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+
+        .set-title {
+            font-size: 48px;
+            font-weight: bold;
+            color: #007aff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+        }
+
+        .sound-text {
+            font-size: 288px;
+            font-weight: 500;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            line-height: 1;
+        }
+
+        .nav-controls {
+            position: absolute;
+            left: 10px;
+            bottom: 60px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 3;
+        }
+
+        .set-controls {
+            position: absolute;
+            left: 10px;
+            top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 3;
+        }
+
+        .reset-control {
+            position: absolute;
+            left: 10px;
+            bottom: 10px;
+            z-index: 3;
+        }
+
+        .ssd-button {
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Sassoon Primary', 'Comic Sans MS', Arial, sans-serif;
+            font-size: 24px;
+            font-weight: 500;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+
+        .set-controls .ssd-button {
+            width: 60px;
+            height: 40px;
+            font-size: 16px;
+            background-color: #34c759;
+            color: white;
+        }
+
+        .ssd-button:hover {
+            transform: translateY(-1px);
+        }
+
+        #prevBtn {
+            background-color: #ff9500;
+            color: white;
+        }
+
+        #nextBtn {
+            background-color: #007aff;
+            color: white;
+        }
+
+        #resetBtn {
+            background-color: #af52de;
+            color: white;
+            width: 60px;
+            height: 40px;
+            font-size: 16px;
+        }
+
+        /* M5 Blending Board Styles */
+        .blending-board {
+            display: flex;
+            height: 100vh;
+        }
+
+        .teacher-view {
+            width: 20%;
+            padding: 15px;
+            background-color: #ffffff;
+            border-right: 1px solid #d2d2d7;
+            max-height: 100vh;
+            overflow-y: auto;
+        }
+
+        .student-view {
+            width: 80%;
+            padding: 20px;
+            background-color: #ffffff;
+            overflow-x: auto;
+        }
+
+        .form-group {
+            margin: 8px 0;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: calc(100% - 18px);
+            padding: 8px;
+            border: 1px solid #c7c7cc;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: 'Sassoon Primary', 'Comic Sans MS', Arial, sans-serif;
+            box-sizing: border-box;
+            display: block;
+            margin-top: 4px;
+        }
+
+        .form-group label {
+            font-size: 14px;
+            color: #1d1d1f;
+            display: block;
+        }
+
+        .support-dropdown {
+            position: relative;
+            width: 100%;
+        }
+
+        .support-select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #c7c7cc;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: 'Sassoon Primary', 'Comic Sans MS', Arial, sans-serif;
+            background-color: #ffffff;
+            appearance: none;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+
+        .support-select:focus {
+            outline: none;
+            border-color: #007aff;
+        }
+
+        .support-dropdown::after {
+            content: '▼';
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            color: #1d1d1f;
+        }
+
+        .support-select option {
+            padding: 10px;
+            font-family: 'Sassoon Primary', 'Comic Sans MS', Arial, sans-serif;
+        }
+
+        @keyframes dropdownFade {
+            0% { opacity: 0; transform: translateY(-10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .support-select:focus + .support-options {
+            animation: dropdownFade 0.3s ease-in-out;
+        }
+
+        .letter-tiles {
+            min-height: 120px;
+            padding: 15px;
+            background-color: #ffffff;
+            border-radius: 12px;
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .letter-tile {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 160px;
+            height: 160px;
+            background: #ffffff;
+            margin: 5px;
+            font-size: 72px;
+            font-family: 'Sassoon Primary', 'Comic Sans MS', Arial, sans-serif;
+            cursor: move;
+            user-select: none;
+            border: 1px solid #d2d2d7;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            flex-shrink: 0;
+            touch-action: none;
+            pointer-events: auto;
+        }
+
+        .letter-tile.selected {
+            border: 2px solid #007aff;
+            transform: scale(1.05);
+        }
+
+        .drop-zone {
+            width: auto;
+            min-width: 600px;
+            height: 200px;
+            border: 2px dashed #ff3b30;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 12px;
+            text-align: center;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            flex-wrap: nowrap;
+            gap: 10px;
+            overflow-x: auto;
+            touch-action: none;
+            font-family: 'Sassoon Primary', 'Comic Sans MS', Arial, sans-serif;
+        }
+
+        .correct { 
+            background-color: #34c759;
+        }
+
+        .incorrect { 
+            background-color: #ff3b30;
+        }
+
+        .bb-button {
+            width: 100%;
+            padding: 12px;
+            margin: 5px 0;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Sassoon Primary', 'Comic Sans MS', Arial, sans-serif;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+
+        .bb-button:hover {
+            transform: translateY(-1px);
+        }
+
+        #generateBtn {
+            background-color: #007aff;
+            color: white;
+        }
+
+        #resetBtnBB {
+            background-color: #af52de;
+            color: white;
+        }
+
+        #correctBtn { 
+            background-color: #34c759;
+            color: white;
+        }
+
+        #incorrectBtn { 
+            background-color: #ff3b30;
+            color: white;
+        }
+
+        #reportBtn {
+            background-color: #ff9500;
+            color: white;
+        }
+
+        #printBtn {
+            background-color: #ff2d55;
+            color: white;
+        }
+        #resetSessionDataBtn { 
+            background-color: #dc3545; 
+            color: white;
+        }
+        #adminDownloadAllDataBtn { /* New button style */
+            background-color: #17a2b8; /* A Bootstrap 'info' blue/teal */
+            color: white;
+        }
+
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            overflow-y: auto; 
+        }
+
+        .modal-content {
+            background-color: #ffffff;
+            margin: 5% auto;
+            padding: 20px;
+            border-radius: 12px;
+            width: 80%;
+            max-width: 800px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            font-family: 'Sassoon Primary', 'Comic Sans MS', Arial, sans-serif;
+        }
+
+        .close-btn {
+            color: #6b7280;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close-btn:hover {
+            color: #000000;
+        }
+
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-family: 'Sassoon Primary', 'Comic Sans MS', Arial, sans-serif;
+        }
+
+        .report-table th, .report-table td {
+            border: 1px solid #d2d2d7;
+            padding: 12px;
+            text-align: left;
+        }
+
+        .report-table th {
+            background-color: #f5f5f7;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 1; 
+        }
+        .modal-content .report-table th { 
+             top: -20px; 
+        }
+
+
+        .report-table tr:nth-child(even) {
+            background-color: #f5f5f7;
+        }
+
+        .report-table tr:hover {
+            background-color: #e9e9eb;
+        }
+
+        .report-status-correct { 
+            color: #34c759;
+            font-weight: bold;
+        }
+
+        .report-status-incorrect { 
+            color: #ff3b30;
+            font-weight: bold;
+        }
+
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .report-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px; 
+        }
+
+        .report-btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.3s;
+            font-family: 'Sassoon Primary', 'Comic Sans MS', Arial, sans-serif;
+        }
+
+        .export-csv-btn {
+            background-color: #007aff;
+            color: white;
+        }
+
+        .print-report-btn {
+            background-color: #6b7280;
+            color: white;
+        }
+
+        .copy-report-btn { 
+            background-color: #28a745; 
+            color: white;
+        }
+
+
+        .no-data-message {
+            text-align: center;
+            padding: 40px 0;
+            color: #6b7280;
+            font-size: 18px;
+        }
+
+        .formatted-date {
+            white-space: nowrap;
+        }
+
+        h1 { 
+            color: #000000;
+            text-align: center;
+            font-size: 48px;
+            font-family: 'Sassoon Primary', 'Comic Sans MS', Arial, sans-serif;
+        }
+        
+        .student-view > h1 {
+             margin-top: 0; 
+             margin-bottom: 20px; 
+        }
+
+
+        h2 {
+            font-size: 18px;
+            color: #1d1d1f;
+            font-family: 'Sassoon Primary', 'Comic Sans MS', Arial, sans-serif;
+        }
+
+        /* Responsive Styles */
+        @media (max-width: 1200px) {
+            .drop-zone {
+                min-width: 400px;
+            }
+
+            .letter-tile {
+                width: 120px;
+                height: 120px;
+                font-size: 54px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .homepage h1 {
+                font-size: 36px;
+            }
+
+            .nav-button {
+                width: 200px;
+                height: 50px;
+                font-size: 20px;
+            }
+
+            .flashcard-container {
+                height: 60%;
+            }
+
+            .sound-text {
+                font-size: 192px;
+            }
+
+            .set-title {
+                font-size: 36px;
+            }
+
+            .ssd-button {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+            }
+
+            .set-controls .ssd-button {
+                width: 50px;
+                height: 30px;
+                font-size: 14px;
+            }
+
+            #resetBtn {
+                width: 50px;
+                height: 30px;
+                font-size: 14px;
+            }
+            
+            .teacher-view {
+                width: 30%; 
+            }
+            .student-view {
+                width: 70%;
+            }
+
+            .drop-zone {
+                min-width: 250px; 
+                height: 150px;
+            }
+
+            .letter-tile {
+                width: 80px;
+                height: 80px;
+                font-size: 36px;
+            }
+            .modal-content {
+                width: 90%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .homepage h1 {
+                font-size: 24px;
+            }
+
+            .nav-button {
+                width: 180px;
+                height: 45px;
+                font-size: 18px;
+            }
+
+            .flashcard-container {
+                height: 50%;
+            }
+
+            .sound-text {
+                font-size: 144px;
+            }
+
+            .set-title {
+                font-size: 24px;
+            }
+
+            .ssd-button {
+                width: 35px;
+                height: 35px;
+                font-size: 18px;
+            }
+
+            .set-controls .ssd-button {
+                width: 45px;
+                height: 25px;
+                font-size: 12px;
+            }
+
+            #resetBtn {
+                width: 45px;
+                height: 25px;
+                font-size: 12px;
+            }
+
+            .blending-board {
+                flex-direction: column; 
+            }
+            .teacher-view {
+                width: 100%;
+                max-height: 40vh; 
+                border-right: none;
+                border-bottom: 1px solid #d2d2d7;
+            }
+            .student-view {
+                width: 100%;
+                height: 60vh; 
+            }
+            .student-view > h1 {
+                font-size: 24px;
+            }
+            .drop-zone {
+                min-width: 200px; 
+                height: 120px;
+                margin: 20px auto;
+            }
+            .letter-tile {
+                width: 60px;
+                height: 60px;
+                font-size: 28px;
+            }
+             .modal-content {
+                width: 95%;
+                margin: 2% auto;
+            }
+        }
+
+        @media print {
+            body {
+                overflow: visible !important; 
+                height: auto !important;
+            }
+            body * {
+                visibility: hidden;
+            }
+
+            #reportModal,
+            #reportModal .modal-content,
+            #reportModal .modal-content * {
+                visibility: visible;
+            }
+
+            #reportModal {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                height: auto !important;
+                overflow: visible !important;
+                background-color: white !important;
+                z-index: 9999 !important; 
+            }
+
+            .modal-content {
+                position: static !important;
+                width: 100% !important; 
+                max-width: none !important;
+                margin: 0 !important;
+                padding: 10px !important; 
+                border: none !important;
+                box-shadow: none !important;
+                max-height: none !important;
+                overflow-y: visible !important;
+            }
+            
+            .report-header {
+                margin-bottom: 15px;
+            }
+            .report-header h2 {
+                font-size: 16pt;
+                text-align: left; 
+            }
+
+            .report-table {
+                width: 100%;
+                font-size: 9pt; 
+                border-collapse: collapse;
+                margin-top: 0;
+            }
+
+            .report-table th, .report-table td {
+                border: 1px solid #666 !important; 
+                padding: 4px 6px !important;
+                word-break: break-word;
+            }
+
+            .report-table th {
+                background-color: #e0e0e0 !important;
+                position: static !important; 
+                font-weight: bold;
+                -webkit-print-color-adjust: exact; 
+                color-adjust: exact;
+            }
+            .report-table tr:nth-child(even) {
+                background-color: #f0f0f0 !important;
+                -webkit-print-color-adjust: exact;
+                color-adjust: exact;
+            }
+            
+            .report-status-correct, .report-status-incorrect {
+                font-weight: normal; 
+                 -webkit-print-color-adjust: exact; 
+                color-adjust: exact;
+            }
+
+            .close-btn, .report-controls, .watermark,
+            .homepage, .speed-sound-deck,
+            .teacher-view, 
+            .student-view > h1, 
+            .letter-tiles, .drop-zone,
+            .nav-button, .ssd-button, .bb-button,
+            .form-group button#homeBtnBB, 
+            .form-group button#resetSessionDataBtn, 
+            .form-group button#adminDownloadAllDataBtn, /* Hide new admin button in print */
+            .set-controls button#homeBtnSSD 
+             {
+                display: none !important;
+            }
+        }
+
+        .hidden {
+            display: none !important; 
+        }
+    </style>
+</head>
+<body>
+    <div id="homepage" class="homepage">
+        <h1>M5 Literacy Suite</h1>
+        <div class="button-container">
+            <button id="speedSoundBtn" class="nav-button">Speed Sound Deck</button>
+            <button id="blendingBoardBtn" class="nav-button">M5 Blending Board</button>
+        </div>
+    </div>
+
+    <div id="speedSoundDeck" class="speed-sound-deck hidden">
+        <div class="flashcard-container" id="flashcardContainer">
+            <div class="flashcard active" id="currentCard"></div>
+        </div>
+        <div class="set-controls">
+            <button id="set1Btn" class="ssd-button">Set 1</button>
+            <button id="set2Btn" class="ssd-button">Set 2</button>
+            <button id="set3Btn" class="ssd-button">Set 3</button>
+            <button id="homeBtnSSD" class="ssd-button" style="background-color: #ff3b30;">Home</button>
+        </div>
+        <div class="nav-controls">
+            <button id="prevBtn" class="ssd-button">←</button>
+            <button id="nextBtn" class="ssd-button">→</button>
+        </div>
+        <div class="reset-control">
+            <button id="resetBtn" class="ssd-button">Reset</button>
+        </div>
+    </div>
+
+    <div id="blendingBoard" class="blending-board hidden">
+        <div class="teacher-view">
+            <div class="form-group">
+                <label for="studentName">Student:</label>
+                <input type="text" id="studentName">
+            </div>
+            <div class="form-group">
+                <label for="adultName">Adult:</label>
+                <input type="text" id="adultName">
+            </div>
+            <div class="form-group">
+                <label for="wordInput">Word:</label>
+                <input type="text" id="wordInput">
+            </div>
+            <div class="form-group">
+                <label for="verbalSupportLevel">Verbal Support Scale (1-5):</label>
+                <div class="support-dropdown">
+                    <select id="verbalSupportLevel" class="support-select">
+                        <option value="5" title="Continuous and explicit verbal instructions, repeated modeling, and detailed prompting required throughout blending.">
+                            5 - Full Verbal Support
+                        </option>
+                        <option value="4" title="Frequent, detailed verbal prompts and explicit modeling required to successfully blend sounds.">
+                            4 - Significant Verbal Support
+                        </option>
+                        <option value="3" title="Regular verbal cues, reminders, or partial modeling needed to support blending.">
+                            3 - Moderate Verbal Support
+                        </option>
+                        <option value="2" title="Brief verbal prompts or minimal reminders needed occasionally.">
+                            2 - Minimal Verbal Support
+                        </option>
+                        <option value="1" selected title="No verbal support required; student blends sounds independently.">
+                            1 - Independent (Verbal)
+                        </option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="visualSupportLevel">Visual Support Scale (1-5):</label>
+                <div class="support-dropdown">
+                    <select id="visualSupportLevel" class="support-select">
+                        <option value="5" title="Constant visual prompts (e.g., pointing, gesture, explicit visual aids, or repeated modeling) required throughout blending.">
+                            5 - Full Visual Support
+                        </option>
+                        <option value="4" title="Frequent visual cues or consistent modeling necessary to successfully blend sounds.">
+                            4 - Significant Visual Support
+                        </option>
+                        <option value="3" title="Occasional visual prompts (such as gestures, pointing, or visual aids) needed to support blending.">
+                            3 - Moderate Visual Support
+                        </option>
+                        <option value="2" title="Rare or brief visual prompts required; student largely independent visually.">
+                            2 - Minimal Visual Support
+                        </option>
+                        <option value="1" selected title="No visual support required; student blends sounds independently.">
+                            1 - Independent (Visual)
+                        </option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <button id="generateBtn" class="bb-button">Generate</button>
+            </div>
+            <div class="form-group">
+                <button id="resetBtnBB" class="bb-button">Reset Tiles</button>
+            </div>
+            <div class="form-group">
+                <button id="correctBtn" class="bb-button">Correct</button>
+            </div>
+            <div class="form-group">
+                <button id="incorrectBtn" class="bb-button">Incorrect</button>
+            </div>
+            <div class="form-group">
+                <button id="reportBtn" class="bb-button">View Report</button>
+            </div>
+            <div class="form-group">
+                <button id="printBtn" class="bb-button">Print</button>
+            </div>
+            <div class="form-group">
+                <button id="resetSessionDataBtn" class="bb-button" style="background-color: #dc3545;">Reset Session Data</button>
+            </div>
+            <div class="form-group">
+                <button id="adminDownloadAllDataBtn" class="bb-button" style="background-color: #17a2b8;">Download All Stored Data (Admin)</button>
+            </div>
+            <div class="form-group">
+                <button id="homeBtnBB" class="bb-button" style="background-color: #ff3b30;">Home</button>
+            </div>
+        </div>
+        <div class="student-view">
+            <h1>M5 Blending Board</h1>
+            <div class="letter-tiles" id="letterTiles"></div>
+            <div class="drop-zone" id="dropZone">
+                Drag or tap letters here!
+            </div>
+        </div>
+        <div id="reportModal" class="modal">
+            <div class="modal-content">
+                <div class="report-header">
+                    <h2>Phonics Blending Progress Report</h2>
+                    <span class="close-btn" onclick="closeReportModal()">×</span>
+                </div>
+                <div id="reportContent">
+                     <!-- Table will be inserted here by JavaScript -->
+                </div>
+                <div class="report-controls">
+                    <button class="report-btn export-csv-btn" onclick="exportReportCSV(false)">Export Current View CSV</button>
+                    <button class="report-btn print-report-btn" onclick="printReport()">Print Report</button>
+                    <button class="report-btn copy-report-btn" onclick="copyReportText()">Copy Report Text</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="watermark">Scott Clee dev ©</div>
+
+    <script>
+        // View Management
+        function showHomepage() {
+            document.getElementById('homepage').classList.remove('hidden');
+            document.getElementById('speedSoundDeck').classList.add('hidden');
+            document.getElementById('blendingBoard').classList.add('hidden');
+            document.getElementById('reportModal').style.display = 'none';
+            console.log('Showing homepage');
+        }
+
+        function showSpeedSoundDeck() {
+            document.getElementById('homepage').classList.add('hidden');
+            document.getElementById('speedSoundDeck').classList.remove('hidden');
+            document.getElementById('blendingBoard').classList.add('hidden');
+            initializeSpeedSoundDeck();
+            console.log('Showing Speed Sound Deck');
+        }
+
+        function showBlendingBoard() {
+            document.getElementById('homepage').classList.add('hidden');
+            document.getElementById('speedSoundDeck').classList.add('hidden');
+            document.getElementById('blendingBoard').classList.remove('hidden');
+            initializeBlendingBoard();
+            console.log('Showing M5 Blending Board');
+        }
+
+        // Event Listeners for Navigation
+        document.getElementById('speedSoundBtn').addEventListener('click', showSpeedSoundDeck);
+        document.getElementById('speedSoundBtn').addEventListener('touchstart', (e) => { e.preventDefault(); showSpeedSoundDeck(); }, { passive: false });
+        document.getElementById('blendingBoardBtn').addEventListener('click', showBlendingBoard);
+        document.getElementById('blendingBoardBtn').addEventListener('touchstart', (e) => { e.preventDefault(); showBlendingBoard(); }, { passive: false });
+        document.getElementById('homeBtnSSD').addEventListener('click', showHomepage);
+        document.getElementById('homeBtnSSD').addEventListener('touchstart', (e) => { e.preventDefault(); showHomepage(); }, { passive: false });
+        document.getElementById('homeBtnBB').addEventListener('click', showHomepage);
+        document.getElementById('homeBtnBB').addEventListener('touchstart', (e) => { e.preventDefault(); showHomepage(); }, { passive: false });
+
+
+        // Speed Sound Deck Logic
+        const sets = [
+            {
+                name: "Set 1",
+                sounds: [
+                    "a", "e", "i", "o", "u",
+                    "m", "s", "d", "t", "n", "p", "g", "c", "k", "b", "f",
+                    "l", "h", "r", "j", "v", "y", "w", "z", "x", "sh", "th",
+                    "ch", "qu", "ng", "nk"
+                ]
+            },
+            {
+                name: "Set 2",
+                sounds: ["ay", "ee", "igh", "ow", "oo", "oo", "ar", "or", "air", "ir", "ou", "oy"]
+            },
+            {
+                name: "Set 3",
+                sounds: [
+                    "ea", "oi", "a-e", "i-e", "o-e", "u-e", "aw", "are", "ur", "er",
+                    "ow", "ai", "oa", "ew", "ire", "ear", "ure", "tion", "tious/cious"
+                ]
+            }
+        ];
+
+        let currentSetIndex = 0;
+        let currentSoundIndex = 0;
+        let showingSetTitle = true;
+        let cardHistory = [];
+        let isTransitioning = false;
+        let ssdInitialized = false;
+
+
+        function initializeSpeedSoundDeck() {
+            if (ssdInitialized) { 
+                 updateCard(); 
+                 return;
+            }
+            cardHistory = [{ setIndex: 0, soundIndex: 0, isSetTitle: true }];
+            updateCard();
+
+            document.getElementById('prevBtn').addEventListener('click', prevCard);
+            document.getElementById('prevBtn').addEventListener('touchstart', (e) => {e.preventDefault(); prevCard(e);}, { passive: false });
+            document.getElementById('nextBtn').addEventListener('click', nextCard);
+            document.getElementById('nextBtn').addEventListener('touchstart', (e) => {e.preventDefault(); nextCard(e);}, { passive: false });
+            document.getElementById('resetBtn').addEventListener('click', resetCards); // Speed Sound Deck Reset
+            document.getElementById('resetBtn').addEventListener('touchstart', (e) => {e.preventDefault(); resetCards(e);}, { passive: false });
+            document.getElementById('set1Btn').addEventListener('click', () => goToSet(0));
+            document.getElementById('set1Btn').addEventListener('touchstart', (e) => {e.preventDefault(); goToSet(0);}, { passive: false });
+            document.getElementById('set2Btn').addEventListener('click', () => goToSet(1));
+            document.getElementById('set2Btn').addEventListener('touchstart', (e) => {e.preventDefault(); goToSet(1);}, { passive: false });
+            document.getElementById('set3Btn').addEventListener('click', () => goToSet(2));
+            document.getElementById('set3Btn').addEventListener('touchstart', (e) => {e.preventDefault(); goToSet(2);}, { passive: false });
+            
+            document.addEventListener('keydown', handleSSDKeyPress);
+            ssdInitialized = true;
+        }
+        
+        function handleSSDKeyPress(e) {
+            if (document.getElementById('speedSoundDeck').classList.contains('hidden')) {
+                return; 
+            }
+            if (e.key === 'ArrowLeft') {
+                prevCard(e);
+            } else if (e.key === 'ArrowRight') {
+                nextCard(e);
+            }
+        }
+
+        function handleCardClick(e) {
+            e.preventDefault();
+            nextCard(e);
+        }
+
+        function handleCardTap(e) {
+            e.preventDefault();
+            const card = document.getElementById('currentCard');
+            if (!card) return;
+            const rect = card.getBoundingClientRect();
+            const tapX = e.touches[0].clientX - rect.left;
+            const cardWidth = rect.width;
+
+            if (tapX < cardWidth / 2) {
+                prevCard(e);
+            } else {
+                nextCard(e);
+            }
+        }
+
+        function updateCard() {
+            let currentCard = document.getElementById('currentCard'); 
+            if (!currentCard) {
+                console.error('Current card element not found');
+                const container = document.getElementById('flashcardContainer');
+                if (container && !container.querySelector('.flashcard')) {
+                     const newCardElement = createNewCard(); 
+                     if (newCardElement) {
+                         currentCard = newCardElement; 
+                     } else {
+                        return;
+                     }
+                } else if (!container) {
+                    return;
+                }
+            }
+            
+            currentCard.innerHTML = ''; 
+            currentCard.removeEventListener('click', handleCardClick);
+            currentCard.removeEventListener('touchstart', handleCardTap);
+
+            if (showingSetTitle) {
+                const titleSpan = document.createElement('span');
+                titleSpan.className = 'set-title';
+                titleSpan.textContent = sets[currentSetIndex].name;
+                currentCard.appendChild(titleSpan);
+            } else {
+                const soundSpan = document.createElement('span');
+                soundSpan.className = 'sound-text';
+                const sound = sets[currentSetIndex].sounds[currentSoundIndex];
+                soundSpan.textContent = sound;
+                currentCard.appendChild(soundSpan);
+            }
+
+            currentCard.addEventListener('click', handleCardClick);
+            currentCard.addEventListener('touchstart', handleCardTap, { passive: false });
+        }
+
+        function createNewCard() {
+            const container = document.getElementById('flashcardContainer');
+            if (!container) {
+                console.error('Flashcard container not found');
+                return null;
+            }
+            const existingCard = container.querySelector('#currentCard');
+            if (existingCard) {
+                existingCard.remove();
+            }
+
+            const newCard = document.createElement('div');
+            newCard.className = 'flashcard active fade-in';
+            newCard.id = 'currentCard'; 
+            container.appendChild(newCard);
+            return newCard;
+        }
+
+        function goToSet(setIndex) {
+            if (isTransitioning) return;
+            isTransitioning = true;
+
+            let currentCard = document.getElementById('currentCard'); 
+            if (!currentCard) {
+                console.warn("goToSet: currentCard not found, attempting to create.");
+                const newCreatedCard = createNewCard();
+                if(!newCreatedCard) { isTransitioning = false; return; }
+                currentCard = newCreatedCard;
+                currentSetIndex = setIndex;
+                currentSoundIndex = 0;
+                showingSetTitle = true;
+                cardHistory.push({ setIndex: currentSetIndex, soundIndex: currentSoundIndex, isSetTitle: showingSetTitle });
+                updateCard(); 
+                isTransitioning = false;
+                return;
+            }
+
+            currentCard.classList.remove('active');
+            currentCard.classList.add('fade-out');
+
+            setTimeout(() => {
+                currentCard.remove(); 
+                currentSetIndex = setIndex;
+                currentSoundIndex = 0;
+                showingSetTitle = true;
+
+                cardHistory.push({ setIndex: currentSetIndex, soundIndex: currentSoundIndex, isSetTitle: showingSetTitle });
+                const newCardElement = createNewCard(); 
+                if (newCardElement) updateCard(); 
+                isTransitioning = false;
+            }, 300);
+        }
+
+        function nextCard(e) {
+            if (e) e.preventDefault();
+            if (isTransitioning) return;
+            isTransitioning = true;
+
+            let currentCard = document.getElementById('currentCard');
+            let cardWasRecreated = false;
+            if (!currentCard) {
+                console.warn("nextCard: currentCard not found, attempting to create.");
+                const newCreatedCard = createNewCard();
+                if(!newCreatedCard) { isTransitioning = false; return; }
+                currentCard = newCreatedCard; 
+                cardWasRecreated = true;
+            } else {
+                 currentCard.classList.remove('active');
+                 currentCard.classList.add('fade-out');
+            }
+
+            setTimeout(() => {
+                if (!cardWasRecreated && currentCard && currentCard.classList.contains('fade-out')) { 
+                    currentCard.remove();
+                }
+                if (showingSetTitle) {
+                    showingSetTitle = false;
+                    currentSoundIndex = 0;
+                } else {
+                    currentSoundIndex++;
+                    if (currentSoundIndex >= sets[currentSetIndex].sounds.length) {
+                        currentSetIndex++;
+                        if (currentSetIndex >= sets.length) {
+                            currentSetIndex = 0; 
+                        }
+                        currentSoundIndex = 0;
+                        showingSetTitle = true;
+                    }
+                }
+
+                cardHistory.push({ setIndex: currentSetIndex, soundIndex: currentSoundIndex, isSetTitle: showingSetTitle });
+                if (cardWasRecreated) { 
+                    updateCard();
+                } else {
+                    const newCardElement = createNewCard();
+                    if (newCardElement) updateCard();
+                }
+                isTransitioning = false;
+            }, cardWasRecreated ? 0 : 300); 
+        }
+
+        function prevCard(e) {
+            if (e) e.preventDefault();
+            if (isTransitioning || cardHistory.length <= 1) {
+                isTransitioning = false; 
+                return;
+            }
+            isTransitioning = true;
+
+            let currentCard = document.getElementById('currentCard');
+            let cardWasRecreated = false;
+             if (!currentCard) {
+                console.warn("prevCard: currentCard not found, attempting to create.");
+                const newCreatedCard = createNewCard();
+                if(!newCreatedCard) { isTransitioning = false; return; }
+                currentCard = newCreatedCard;
+                cardWasRecreated = true;
+            } else {
+                currentCard.classList.remove('active');
+                currentCard.classList.add('fade-out');
+            }
+
+            setTimeout(() => {
+                if (!cardWasRecreated && currentCard && currentCard.classList.contains('fade-out')) {
+                    currentCard.remove();
+                }
+                cardHistory.pop();
+                const previousState = cardHistory[cardHistory.length - 1];
+                currentSetIndex = previousState.setIndex;
+                currentSoundIndex = previousState.soundIndex;
+                showingSetTitle = previousState.isSetTitle;
+
+                if (cardWasRecreated) {
+                    updateCard();
+                } else {
+                    const newCardElement = createNewCard();
+                    if (newCardElement) updateCard();
+                }
+                isTransitioning = false;
+            }, cardWasRecreated ? 0 : 300);
+        }
+
+        function resetCards(e) { // This is for Speed Sound Deck
+            if (e) e.preventDefault();
+            if (isTransitioning) return;
+            isTransitioning = true;
+
+            let currentCard = document.getElementById('currentCard');
+            let cardWasRecreated = false;
+            if (!currentCard) {
+                 console.warn("resetCards: currentCard not found, attempting to create.");
+                const newCreatedCard = createNewCard();
+                if(!newCreatedCard) { isTransitioning = false; return; }
+                currentCard = newCreatedCard;
+                cardWasRecreated = true;
+            } else {
+                currentCard.classList.remove('active');
+                currentCard.classList.add('fade-out');
+            }
+
+            setTimeout(() => {
+                 if (!cardWasRecreated && currentCard && currentCard.classList.contains('fade-out')) {
+                    currentCard.remove();
+                }
+                currentSetIndex = 0;
+                currentSoundIndex = 0;
+                showingSetTitle = true;
+                cardHistory = [{ setIndex: 0, soundIndex: 0, isSetTitle: true }];
+
+                if (cardWasRecreated) {
+                    updateCard();
+                } else {
+                    const newCardElement = createNewCard();
+                    if (newCardElement) updateCard();
+                }
+                isTransitioning = false;
+            }, cardWasRecreated ? 0 : 300);
+        }
+
+        // M5 Blending Board Logic
+        let currentWord = '';
+        let progressData = []; 
+        let currentWordHasResult = false; 
+        let touchElement = null;
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let cloneElement = null;
+        let selectedTile = null;
+        let blendingBoardInitialized = false;
+        let currentAttemptId = null; 
+
+        function initializeBlendingBoard() {
+            const storedData = localStorage.getItem('progressData');
+            progressData = storedData ? JSON.parse(storedData) : [];
+            
+            if (blendingBoardInitialized) return;
+
+            const generateBtn = document.getElementById('generateBtn');
+            const resetTilesBtn = document.getElementById('resetBtnBB'); 
+            const correctBtn = document.getElementById('correctBtn');
+            const incorrectBtn = document.getElementById('incorrectBtn');
+            const reportBtn = document.getElementById('reportBtn');
+            const printBtn = document.getElementById('printBtn'); 
+            const resetSessionDataBtn = document.getElementById('resetSessionDataBtn'); 
+            const adminDownloadBtn = document.getElementById('adminDownloadAllDataBtn'); // New button
+            const dropZone = document.getElementById('dropZone');
+
+            generateBtn.onclick = generateWord;
+            resetTilesBtn.onclick = resetCurrentWordTiles; 
+            correctBtn.onclick = markCorrect;
+            incorrectBtn.onclick = markIncorrect;
+            reportBtn.onclick = showReportModal;
+            printBtn.onclick = printCurrentView; 
+            resetSessionDataBtn.onclick = handleResetSessionData; 
+            adminDownloadBtn.onclick = handleAdminDownloadAllData; // Add listener for new admin button
+
+
+            dropZone.ondrop = drop;
+            dropZone.ondragover = allowDrop;
+            dropZone.ontouchstart = (e) => { e.preventDefault(); handleDropZoneTouch(e); }; 
+
+            blendingBoardInitialized = true;
+        }
+        
+        function handleResetSessionData() {
+            const password = prompt("To reset all session data for this browser, please enter the password:", "");
+            if (password === "1234") {
+                progressData = [];
+                localStorage.removeItem('progressData');
+
+                document.getElementById('studentName').value = '';
+                document.getElementById('adultName').value = '';
+                document.getElementById('wordInput').value = '';
+
+                document.getElementById('letterTiles').innerHTML = '';
+                const dropZone = document.getElementById('dropZone');
+                dropZone.innerHTML = 'Drag or tap letters here!';
+                dropZone.classList.remove('correct', 'incorrect');
+                dropZone.style.width = 'auto'; 
+
+                currentWord = '';
+                currentAttemptId = null;
+                currentWordHasResult = false;
+                if (selectedTile) selectedTile.classList.remove('selected');
+                selectedTile = null;
+
+                document.getElementById('verbalSupportLevel').value = '1';
+                document.getElementById('visualSupportLevel').value = '1';
+                
+                alert("All session data stored in this browser has been reset. The current board is also cleared.");
+                closeReportModal(); 
+            } else if (password !== null) { 
+                alert("Incorrect password. Session data not reset.");
+            }
+        }
+        
+        function handleAdminDownloadAllData() {
+            const password = prompt("To download all data stored in this browser, please enter the admin password:", "");
+            if (password === "1234") {
+                exportReportCSV(true); // Pass true to indicate it's an admin master log download
+            } else if (password !== null) {
+                alert("Incorrect admin password.");
+            }
+        }
+
+
+        function generateWord() {
+            const wordInput = document.getElementById('wordInput').value.toLowerCase().trim();
+            if (wordInput) {
+                currentAttemptId = `attempt-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`; 
+                currentWord = wordInput;
+                currentWordHasResult = false; 
+
+                const letters = currentWord.split('');
+                for (let i = letters.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [letters[i], letters[j]] = [letters[j], letters[i]];
+                }
+
+                const tilesDiv = document.getElementById('letterTiles');
+                tilesDiv.innerHTML = ''; 
+
+                let tileCounter = 0;
+                letters.forEach(letter => {
+                    const tile = document.createElement('div');
+                    tile.className = 'letter-tile';
+                    tile.draggable = true;
+                    tile.textContent = letter;
+                    tile.id = `tile-${currentAttemptId}-${tileCounter++}`; 
+                    tile.ondragstart = drag;
+                    tile.addEventListener('touchstart', handleTileTouchStart, { passive: false });
+                    tile.addEventListener('touchmove', handleTileTouchMove, { passive: false });
+                    tile.addEventListener('touchend', handleTileTouchEnd, { passive: false });
+                    tilesDiv.appendChild(tile);
+                });
+
+                const dropZone = document.getElementById('dropZone');
+                dropZone.innerHTML = 'Drag or tap letters here!';
+                dropZone.classList.remove('correct', 'incorrect'); 
+                
+                if (selectedTile) selectedTile.classList.remove('selected');
+                selectedTile = null; 
+
+                adjustDropZoneWidth(currentWord.length); 
+            } else {
+                alert("Please enter a word to generate.");
+            }
+        }
+        
+        function adjustDropZoneWidth(numLetters) {
+            const dropZone = document.getElementById('dropZone');
+            const tileStyle = window.getComputedStyle(document.querySelector('.letter-tile') || document.createElement('div'));
+            const baseTileWidth = parseFloat(tileStyle.width) || 160; 
+            const gap = 10; 
+            const padding = 40; 
+            
+            let requiredWidth = (numLetters * baseTileWidth) + (Math.max(0, numLetters - 1) * gap) + padding;
+            
+            const minWidthCSS = parseFloat(window.getComputedStyle(dropZone).minWidth) || 0;
+            dropZone.style.width = `${Math.max(requiredWidth, minWidthCSS)}px`;
+        }
+
+
+        function resetCurrentWordTiles() { 
+            const tilesDiv = document.getElementById('letterTiles');
+            const dropZone = document.getElementById('dropZone');
+            
+            if (currentWord && currentAttemptId) { 
+                tilesDiv.innerHTML = ''; 
+                 const letters = currentWord.split('');
+                for (let i = letters.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [letters[i], letters[j]] = [letters[j], letters[i]];
+                }
+                let tileCounter = 0;
+                letters.forEach(letter => {
+                    const tile = document.createElement('div');
+                    tile.className = 'letter-tile';
+                    tile.draggable = true;
+                    tile.textContent = letter;
+                    tile.id = `tile-${currentAttemptId}-${tileCounter++}`; 
+                    tile.ondragstart = drag;
+                    tile.addEventListener('touchstart', handleTileTouchStart, { passive: false });
+                    tile.addEventListener('touchmove', handleTileTouchMove, { passive: false });
+                    tile.addEventListener('touchend', handleTileTouchEnd, { passive: false });
+                    tilesDiv.appendChild(tile);
+                });
+                adjustDropZoneWidth(currentWord.length);
+            } else {
+                tilesDiv.innerHTML = '';
+                dropZone.style.width = 'auto'; 
+            }
+
+            dropZone.innerHTML = 'Drag or tap letters here!';
+            dropZone.classList.remove('correct', 'incorrect'); 
+            
+            currentWordHasResult = false; 
+            if (selectedTile) selectedTile.classList.remove('selected');
+            selectedTile = null;
+        }
+
+
+        function allowDrop(ev) {
+            ev.preventDefault();
+        }
+
+        function drag(ev) {
+            ev.dataTransfer.setData("text", ev.target.textContent);
+            ev.dataTransfer.setData("id", ev.target.id);
+        }
+
+        function drop(ev) {
+            ev.preventDefault();
+            ev.stopPropagation(); 
+            let letter, tileId;
+            let sourceElement = null;
+
+            if (ev.dataTransfer && ev.dataTransfer.types.length > 0) { 
+                letter = ev.dataTransfer.getData("text");
+                tileId = ev.dataTransfer.getData("id");
+                sourceElement = document.getElementById(tileId);
+            } else if (selectedTile) { 
+                letter = selectedTile.textContent;
+                tileId = selectedTile.id;
+                sourceElement = selectedTile;
+            } else {
+                if (touchElement) { 
+                    letter = touchElement.textContent;
+                    tileId = touchElement.id;
+                    sourceElement = touchElement;
+                } else {
+                    console.warn("Drop event with no clear data source.");
+                    return;
+                }
+            }
+            
+            if (!letter || !tileId) {
+                 console.error("Could not determine letter or tileId for drop.");
+                 return;
+            }
+
+            const dropZone = document.getElementById('dropZone');
+            if (dropZone.textContent === 'Drag or tap letters here!' || dropZone.innerHTML.trim() === 'Drag or tap letters here!') {
+                dropZone.innerHTML = '';
+            }
+
+            const newTileInDropZone = document.createElement('div');
+            newTileInDropZone.className = 'letter-tile';
+            newTileInDropZone.textContent = letter;
+            newTileInDropZone.setAttribute('data-original-id', tileId); 
+            dropZone.appendChild(newTileInDropZone);
+
+            if (sourceElement && sourceElement.parentNode) { 
+                sourceElement.remove();
+            }
+
+            const droppedLetters = Array.from(dropZone.getElementsByClassName('letter-tile'))
+                .map(tile => tile.textContent).join('');
+            checkWordStudentAttempt(droppedLetters); 
+
+            if (cloneElement) { 
+                cloneElement.remove();
+                cloneElement = null;
+            }
+            if (selectedTile) {
+                selectedTile.classList.remove('selected');
+                selectedTile = null;
+            }
+            touchElement = null; 
+        }
+
+        function handleTileTouchStart(ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            const tile = ev.target.closest('.letter-tile');
+            if (!tile) return;
+
+            if (!tile.parentElement || tile.parentElement.id !== 'letterTiles') {
+                 if (selectedTile) { 
+                    selectedTile.classList.remove('selected');
+                    selectedTile = null;
+                 }
+                return;
+            }
+
+            if (selectedTile === tile) { 
+                selectedTile.classList.remove('selected');
+                selectedTile = null;
+                if (cloneElement) cloneElement.remove(); cloneElement = null; 
+                return;
+            } else if (selectedTile) { 
+                selectedTile.classList.remove('selected');
+                 if (cloneElement) cloneElement.remove(); cloneElement = null;
+            }
+            
+            selectedTile = tile;
+            selectedTile.classList.add('selected');
+
+            touchElement = tile; 
+            const touch = ev.changedTouches[0];
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+
+            cloneElement = touchElement.cloneNode(true);
+            cloneElement.style.position = 'absolute';
+            cloneElement.style.opacity = '0.7';
+            cloneElement.style.zIndex = '10000'; 
+            cloneElement.style.pointerEvents = 'none'; 
+            
+            const rect = touchElement.getBoundingClientRect();
+            cloneElement.style.left = `${rect.left}px`;
+            cloneElement.style.top = `${rect.top}px`;
+            cloneElement.style.width = `${rect.width}px`;
+            cloneElement.style.height = `${rect.height}px`;
+            document.body.appendChild(cloneElement);
+        }
+
+        function handleTileTouchMove(ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            if (!cloneElement || !touchElement) return;
+
+            const touch = ev.changedTouches[0];
+            cloneElement.style.left = `${touch.clientX - (cloneElement.offsetWidth / 2)}px`;
+            cloneElement.style.top = `${touch.clientY - (cloneElement.offsetHeight / 2)}px`;
+        }
+
+        function handleTileTouchEnd(ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            if (!touchElement || !cloneElement) { 
+                if(cloneElement) cloneElement.remove(); cloneElement = null;
+                touchElement = null;
+                return;
+            }
+
+            const touch = ev.changedTouches[0];
+            const dropZone = document.getElementById('dropZone');
+            
+            cloneElement.style.visibility = 'hidden';
+            const elementUnderneath = document.elementFromPoint(touch.clientX, touch.clientY);
+            cloneElement.style.visibility = 'visible';
+
+            if (elementUnderneath && (elementUnderneath === dropZone || dropZone.contains(elementUnderneath))) {
+                if (selectedTile !== touchElement && touchElement.classList.contains('letter-tile')) {
+                    if(selectedTile) selectedTile.classList.remove('selected');
+                    selectedTile = touchElement; 
+                    selectedTile.classList.add('selected');
+                }
+                drop(ev); 
+            } else {
+                if (selectedTile === touchElement) { 
+                    selectedTile.classList.remove('selected');
+                    selectedTile = null;
+                }
+            }
+
+            cloneElement.remove();
+            cloneElement = null;
+            touchElement = null; 
+        }
+
+        function handleDropZoneTouch(ev) {
+            ev.stopPropagation();
+            if (selectedTile && selectedTile.parentElement.id === 'letterTiles') { 
+                drop(ev); 
+            } else if (selectedTile) {
+                selectedTile.classList.remove('selected');
+                selectedTile = null;
+            }
+        }
+
+        function checkWordStudentAttempt(droppedWord) { 
+            const dropZone = document.getElementById('dropZone');
+            if (!currentWord) return; 
+
+            if (droppedWord === currentWord) {
+                dropZone.classList.add('correct');
+                dropZone.classList.remove('incorrect');
+                launchConfetti();
+            } else if (droppedWord.length === currentWord.length) { 
+                dropZone.classList.add('incorrect');
+                dropZone.classList.remove('correct');
+            } else { 
+                dropZone.classList.remove('correct', 'incorrect');
+            }
+        }
+
+        function markCorrect() {
+            if (!currentAttemptId) { alert("Please generate a word first."); return; } 
+            const dropZone = document.getElementById('dropZone');
+            dropZone.classList.add('correct'); 
+            dropZone.classList.remove('incorrect');
+            currentWordHasResult = true; 
+            launchConfetti(); 
+            saveProgress(true, true); 
+        }
+
+        function markIncorrect() {
+            if (!currentAttemptId) { alert("Please generate a word first."); return; } 
+            const dropZone = document.getElementById('dropZone');
+            dropZone.classList.add('incorrect'); 
+            dropZone.classList.remove('correct');
+            currentWordHasResult = true; 
+            saveProgress(true, false); 
+        }
+
+        function saveProgress(showAlert = false, isMarkedCorrectByAdult) {
+            const studentName = document.getElementById('studentName').value.trim();
+            const adultName = document.getElementById('adultName').value.trim();
+            const verbalSupportSelect = document.getElementById('verbalSupportLevel');
+            const visualSupportSelect = document.getElementById('visualSupportLevel');
+
+            if (!currentAttemptId) {
+                if (showAlert) alert('No active word attempt to save.');
+                return false;
+            }
+            
+            const entryData = {
+                attemptId: currentAttemptId, 
+                studentName: studentName || "N/A",
+                adultName: adultName || "N/A",
+                word: currentWord,
+                timestamp: new Date().toISOString(), 
+                verbalSupportLevel: verbalSupportSelect.value,
+                verbalSupportDescription: verbalSupportSelect.options[verbalSupportSelect.selectedIndex].text,
+                visualSupportLevel: visualSupportSelect.value,
+                visualSupportDescription: visualSupportSelect.options[visualSupportSelect.selectedIndex].text,
+                accuracy: isMarkedCorrectByAdult 
+            };
+
+            const existingEntryIndex = progressData.findIndex(p => p.attemptId === currentAttemptId);
+
+            if (existingEntryIndex > -1) {
+                progressData[existingEntryIndex] = entryData; 
+            } else {
+                progressData.push(entryData);
+            }
+            
+            if (showAlert) alert('Progress recorded successfully!');
+
+            try {
+                localStorage.setItem('progressData', JSON.stringify(progressData));
+            } catch (e) {
+                console.error("Error saving to localStorage:", e);
+                if (showAlert) alert("Error saving progress. LocalStorage might be full or disabled.");
+                return false;
+            }
+            return true;
+        }
+
+        function formatDate(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleString('en-US', { 
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+        }
+
+        function generateReportText() {
+            const storedData = localStorage.getItem('progressData');
+            const reportProgressData = storedData ? JSON.parse(storedData) : [];
+
+            if (reportProgressData.length === 0) {
+                return "No progress data available."; 
+            }
+
+            let reportText = "Phonics Blending Progress Report\n\n";
+            reportText += "Session # | Student | Adult | Word | Date & Time | Verbal Support | Visual Support | Result\n";
+            reportText += Array(120).join("-") + "\n"; 
+
+            reportProgressData.forEach((entry, index) => {
+                const formattedDate = formatDate(entry.timestamp);
+                const accuracyText = entry.accuracy ? 'Correct' : 'Incorrect';
+                reportText += 
+                    `${String(index + 1).padEnd(10)} | ` +
+                    `${String(entry.studentName).padEnd(10)} | ` +
+                    `${String(entry.adultName).padEnd(10)} | ` +
+                    `${String(entry.word).padEnd(10)} | ` +
+                    `${formattedDate.padEnd(20)} | ` +
+                    `${entry.verbalSupportDescription.padEnd(30)} | ` + 
+                    `${entry.visualSupportDescription.padEnd(30)} | ` + 
+                    `${accuracyText}\n`;
+            });
+
+            return reportText;
+        }
+
+        function copyReportText() { 
+            const reportText = generateReportText();
+            if (reportText === "No progress data available.") {
+                alert(reportText);
+                return;
+            }
+            copyToClipboard(reportText, "Report text copied to clipboard. You can now paste it into an email, Teams, or other application.");
+        }
+
+        function copyToClipboard(text, message = 'Text copied to clipboard!') {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text)
+                    .then(() => alert(message))
+                    .catch(err => {
+                        console.error('Async: Could not copy text: ', err);
+                        fallbackCopyToClipboard(text, message); 
+                    });
+            } else {
+                fallbackCopyToClipboard(text, message); 
+            }
+        }
+
+        function fallbackCopyToClipboard(text, message) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed'; 
+            textarea.style.opacity = '0'; 
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    alert(message);
+                } else {
+                    alert('Failed to copy text using fallback method.');
+                }
+            } catch (err) {
+                console.error('Fallback: Oops, unable to copy', err);
+                alert('Failed to copy text using fallback method.');
+            }
+            document.body.removeChild(textarea);
+        }
+
+
+        function showReportModal() {
+            const storedData = localStorage.getItem('progressData');
+            const modalProgressData = storedData ? JSON.parse(storedData) : []; 
+
+            const modal = document.getElementById('reportModal');
+            const reportContent = document.getElementById('reportContent');
+            reportContent.innerHTML = ''; 
+
+            if (modalProgressData.length === 0) {
+                reportContent.innerHTML = '<p class="no-data-message">No progress data available to generate a report.</p>';
+            } else {
+                let tableHTML = `
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th>Session #</th>
+                                <th>Student</th>
+                                <th>Adult</th>
+                                <th>Word</th>
+                                <th>Date & Time</th>
+                                <th>Verbal Support</th>
+                                <th>Visual Support</th>
+                                <th>Result</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                modalProgressData.forEach((entry, index) => {
+                    const accuracyClass = entry.accuracy ? 'report-status-correct' : 'report-status-incorrect';
+                    const accuracyText = entry.accuracy ? 'Correct' : 'Incorrect';
+                    const formattedDate = formatDate(entry.timestamp);
+
+                    tableHTML += `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${entry.studentName}</td>
+                            <td>${entry.adultName}</td>
+                            <td>${entry.word}</td>
+                            <td class="formatted-date">${formattedDate}</td>
+                            <td>${entry.verbalSupportDescription}</td>
+                            <td>${entry.visualSupportDescription}</td>
+                            <td class="${accuracyClass}">${accuracyText}</td>
+                        </tr>
+                    `;
+                });
+
+                tableHTML += `
+                        </tbody>
+                    </table>
+                `;
+                reportContent.innerHTML = tableHTML;
+            }
+            modal.style.display = 'block';
+        }
+
+
+        function closeReportModal() {
+            document.getElementById('reportModal').style.display = 'none';
+        }
+
+        function exportReportCSV(isMasterLogDownload = false) { // Added parameter
+            const storedData = localStorage.getItem('progressData');
+            const csvProgressData = storedData ? JSON.parse(storedData) : [];
+
+            if (csvProgressData.length === 0) {
+                alert('No progress data available to export.');
+                return;
+            }
+
+            const formatCsvField = (field) => {
+                const stringField = String(field === null || field === undefined ? '' : field);
+                return `"${stringField.replace(/"/g, '""')}"`;
+            };
+
+            let csvContent = '';
+            // Keep Attempt ID for master log, remove for regular session export for simplicity
+            const headers = isMasterLogDownload 
+                ? ['Session #', 'Student', 'Adult', 'Word', 'Date & Time', 'Verbal Support', 'Visual Support', 'Result', 'Attempt ID']
+                : ['Session #', 'Student', 'Adult', 'Word', 'Date & Time', 'Verbal Support', 'Visual Support', 'Result'];
+            csvContent += headers.map(formatCsvField).join(',') + '\n';
+
+            csvProgressData.forEach((entry, index) => {
+                const formattedDate = formatDate(entry.timestamp); 
+                const accuracyText = entry.accuracy ? 'Correct' : 'Incorrect';
+                let row = [
+                    index + 1,
+                    entry.studentName,
+                    entry.adultName,
+                    entry.word,
+                    formattedDate, 
+                    entry.verbalSupportDescription,
+                    entry.visualSupportDescription,
+                    accuracyText
+                ];
+                if (isMasterLogDownload) {
+                    row.push(entry.attemptId || '');
+                }
+                csvContent += row.map(formatCsvField).join(',') + '\n';
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const filename = isMasterLogDownload ? 'm5_literacy_suite_master_log.csv' : 'phonics_report_current_view.csv';
+
+
+            if (navigator.msSaveBlob) { 
+                navigator.msSaveBlob(blob, filename);
+            } else if (link.download !== undefined) { 
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            } else { 
+                const encodedUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvContent);
+                const fallbackLink = document.createElement('a');
+                fallbackLink.setAttribute('href', encodedUri);
+                fallbackLink.setAttribute('download', filename);
+                document.body.appendChild(fallbackLink);
+                fallbackLink.click();
+                document.body.removeChild(fallbackLink);
+                alert("CSV download initiated via fallback. If it doesn't work, your browser might be too old.");
+            }
+        }
+
+
+        function printReport() { 
+            window.print(); 
+        }
+
+        function printCurrentView() { 
+            showReportModal(); 
+            setTimeout(() => {
+                window.print();
+            }, 300); 
+        }
+
+
+        function launchConfetti() {
+            const confettiContainer = document.body; 
+            for (let i = 0; i < 50; i++) {
+                const confettiPiece = document.createElement('div');
+                confettiPiece.style.position = 'fixed'; 
+                confettiPiece.style.left = `${Math.random() * 100}vw`;
+                confettiPiece.style.top = `${Math.random() * -50 + 0}vh`; 
+                confettiPiece.style.width = `${Math.random() * 10 + 5}px`;
+                confettiPiece.style.height = confettiPiece.style.width;
+                confettiPiece.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                confettiPiece.style.opacity = '0.8';
+                confettiPiece.style.zIndex = '9999';
+                confettiPiece.animate([
+                    { transform: `translateY(0) rotate(0deg)`, opacity: 1 },
+                    { transform: `translateY(120vh) rotate(${Math.random() * 720}deg)`, opacity: 0 }
+                ], {
+                    duration: Math.random() * 2000 + 3000, 
+                    easing: 'ease-out',
+                    delay: Math.random() * 500 
+                });
+                confettiContainer.appendChild(confettiPiece);
+                setTimeout(() => confettiPiece.remove(), 5500); 
+            }
+            console.log('Confetti launched!');
+        }
+
+        // Initialize Homepage
+        showHomepage();
+    </script>
+</body>
+</html>
